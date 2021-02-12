@@ -1,0 +1,293 @@
+---
+title: "Interrogación 2 - Modelos Lineales Generalizados"
+author: "Fernanda Vásquez Guzmán"
+date: "13 de Junio de 2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Pregunta 1**
+
+La tabla a continuación muestra los recuentos de una encuesta sobre la preferencia por ciertos partidos políticos. Los cuatro partidos considerados fueron la Unión Demócrata Cristiana (CDU/CSU), el Partido Socialdemócrata (SPD), el Partido Verde (Green Party) y el Partido Liberal (FDP). Las covariables consideradas en el estudio son el género y edad en categorías. Considere 1 : female y 0 : male. Considere el partido CDU/CSU como categoría de referencia.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+
+partidos <- factor(c('CDU/CSU','SPD','Green Party','FDP'))
+gender<-factor(c('male','female'))
+age<-factor(c(1,2,3,4))
+conteo <- c(114,224,53,10,42,161,44,5,134,226,42,9,88,171,60,10,114,174,23,8,90,168,31,8,339,414,13,30,413,375,14,23)
+
+data_1 = data.frame(expand.grid(partidos=relevel(partidos, ref='CDU/CSU'), gender=relevel(gender, ref="male") ,age=age),conteo=conteo)
+head(data_1)
+```
+
+a) Investigue únicamente el efecto del género (solo considere el género en su modelo) en la preferencia política a través de un modelo asociado. Proponga el modelo teórico y el estimado.
+
+\textbf{Resolución} 
+
+El modelo teórico que se propone es:
+$$ \log{(\frac{\pi_{j}}{\pi_{1}})} = \alpha_j + \beta_{ji}x_i $$
+Para todo $j = 2,...,J$, donde $j=1$ es la categoría de referencia y $x_i$ es la variable género, siendo $i=1$, ya que solo se tiene un predictor. La notación de \texttt{R}, toma como referecia $j=1$, pero también otros programas toman como referencia $J$, por lo que $j=1,...,J-1$, lo que no aplica a este caso, por el tema de notación anteriormente explicado. 
+
+Este modelo se puede expandir a todas las categorías de la variable multinomial, quedando expresadas de la siguiente manera y considerando que el partido CDU/CSU fue el que se usó de referencia:
+$$ \log{(\frac{\pi_{FDP}}{\pi_{CDU/CSU}})} = \alpha_2 + \beta_{21}\text{I}\lbrace \text{género = male} \rbrace $$
+$$ \log{(\frac{\pi_{Green Party}}{\pi_{CDU/CSU}})} = \alpha_3 + \beta_{31}\text{I}\lbrace \text{género = male} \rbrace $$
+$$ \log{(\frac{\pi_{SPD}}{\pi_{CDU/CSU}})} = \alpha_4 + \beta_{41}\text{I}\lbrace \text{género = male} \rbrace $$
+La forma generalizada del modelo estimado es:
+$$ \log{(\frac{\hat\pi_{j}}{\hat\pi_{1}})} = \hat\alpha_j + \hat\beta_{ji}x_i $$
+Para estimarlo, se utiliza el paquete \texttt{nnet} y su función \texttt{multinom}, el cual entrega la siguiente salida:
+```{r, warning=FALSE, message=FALSE}
+require(nnet)
+
+modelo_1 = multinom(partidos ~ gender , data=data_1 , weights=conteo)
+summary(modelo_1)
+```
+Por lo que el modelo estimado queda de la siguiente forma para cada categoría de la variable categórica multinomial:
+$$ \log{(\frac{\hat\pi_{FDP}}{\hat\pi_{CDU/CSU}})} = -2.51 - 0.11\ \text{I}\lbrace \text{género = male} \rbrace $$
+$$ \log{(\frac{\hat\pi_{Green Party}}{\hat\pi_{CDU/CSU}})} = -1.68 + 0.23\ \text{I}\lbrace \text{género = male} \rbrace $$
+$$ \log{(\frac{\hat\pi_{SPD}}{\hat\pi_{CDU/CSU}})} = 0.39 - 0.07\ \text{I}\lbrace \text{género = male} \rbrace $$
+
+b) Sean $\alpha_j$ y $\beta_j$ los parámetros de su modelo asociados a la j-ésima categoría, con $j = 1,...,J-1$. Interprete $\exp{(\alpha_j)}$ y $\exp{(\beta_j)}$ en términos del problema, para cualquier $j$.
+
+\textbf{Resolución} 
+
+La expresión $\exp{(\alpha_j)}$ indica como cambia la chance de preferencia por el partido $j$ respecto al partido base, en este caso, CDU/CSU. Si la expresión es menor a 0, se tiene mayor preferencia por el partido CDU/CSU, mientras que si es mayor a 1 se tiene preferencia por el partido en análisis.
+
+Mientras que la expresión $\exp{(\beta_j)}$ indica como cambia la chance de preferencia por el partido $j$ respecto al partido base en relación a mujeres respecto a hombres, que es la categoría base de la variable género. Si la chance es mayor a 1, las mujeres tienen mayor preferencia poro el partido $j$ que por el partido referencia respecto a los hombres.
+
+c) Interprete lo anterior para el $j=$ Partido Verde.
+
+\textbf{Resolución} 
+
+La chance del intercepto se obtiene como:
+```{r}
+exp(coef(modelo_1)["Green Party",1])
+```
+E indica que la chance de preferencia por el Partido Verde es 0.18 veces en relación al Partido CDU/CSU; por lo que las personas prefieren el Partido CDU/CSU sobre el Partido Verde.
+
+La chance del coeficiente se obtiene como:
+```{r}
+exp(coef(modelo_1)["Green Party",2])
+```
+E indica la chance de preferencia por el Partido Verde en relación al Partido CDU/CSU es 1.25 veces mayor en mujeres respecto a hombres; es decir que las mujeres prefieren votar por el partido verde 1.2 veces más que los hombres.
+
+# **Pregunta 2**
+
+Los datos mostrados en la siguiente tabla corresponden a un estudio clínico centrado en la curación de lesiones de rodilla relacionadas con el deporte. Se trataron $n = 127$ aleatorizados en dos terapias (tratamiento y control). En el grupo de tratamiento se usó un aerosol antiinflamatorio, mientras que en el grupo control (placebo) se usó un aerosol sin ingredientes activos. Después de 3, 7 y 10 días de tratamiento con el aerosol, se investigó la movilidad de la rodilla en un experimento estandarizado durante el cual el paciente movió activamente la rodilla. El dolor $Y$ que ocurre durante el movimiento se evaluó en una escala de cinco puntos que varía de 1 para no dolor a 5 para dolor intenso. Considere 1 : tratamiento y 0 : control.
+
+```{r, echo=FALSE, warning=FALSE,message=FALSE}
+terapia <- factor(c('placebo', 'tratamiento'))
+escala_dolor <- factor(c(1,2,3,4,5))
+conteo <- c(17,8,14,20,4,19,26,11,6,2)
+
+data_2 = data.frame(expand.grid(escala_dolor=escala_dolor, terapia=relevel(terapia,ref="placebo")),conteo=conteo)
+head(data_2)
+```
+
+a) Proponga un modelo apropiado para relacionar el dolor de rodilla y el tipo de terapia.
+
+\textbf{Resolución} 
+
+Primero se verifica que la escala de dolor sea una variable ordinal, y que las categorías sean consideradas en función del nivel de dolor: 
+```{r}
+data_2$escala_dolor <- factor(data_2$escala_dolor, levels = c(1,2,3,4,5) , ordered =TRUE)
+```
+
+Luego, el modelo teórico que se propone para modelar el dolor de rodilla y el tipo de terapia es:
+$$ \log{\frac{P(Y \leq j | x)}{P(Y > j | x)}} = \alpha_j + \beta_{1}\text{I}\lbrace \text{terapia = tratamiento} \rbrace $$
+Donde el $\beta_1$ es el mismo para todas las categorías de la variable, es decir, se asume um modelo chances proporcionales y $j=1,...,J-1$, siendo $J=5$ la cantidad de categorias de la variable escala de dolor.
+
+Para estimarlo, se utiliza el paquete \texttt{VGAM} y su función \texttt{vglm}, el cual entrega la siguiente salida:
+```{r, warning=FALSE, message=FALSE}
+require(VGAM)
+modelo_2 = vglm(escala_dolor ~ terapia, data = data_2, weights = conteo, 
+                family = cumulative(parallel = TRUE))
+modelo_2
+```
+Por lo que el modelo ajustado es:
+$$ \log{\frac{P(Y =1)}{P(Y =2,3,4,5)}} = -1.46 + 0.89 \ \text{I}\lbrace \text{terapia = tratamiento} \rbrace $$
+$$ \log{\frac{P(Y =1,2)}{P(Y = 3,4,5)}} = -0.28 + 0.89 \ \text{I}\lbrace \text{terapia = tratamiento} \rbrace $$
+$$ \log{\frac{P(Y =1,2,3)}{P(Y =4,5)}} = 0.66 + 0.89 \ \text{I}\lbrace \text{terapia = tratamiento} \rbrace $$
+$$ \log{\frac{P(Y =1,2,3,4)}{P(Y = 5)}} = 2.64 + 0.89 \ \text{I}\lbrace \text{terapia = tratamiento} \rbrace $$
+
+b) Estudie la validez del supuesto de chances proporcionales.
+
+\textbf{Resolución} 
+
+Para analizar este supuesto, se utilizará un TRV, donde $M_0$ corresponde al modelo propuesto en el apartado anterior, que tiene como premisa que el efecto de la covariable terapia sobre la chance es independiente de la categoría, mientras que el modelo $M_1$ también llamado modelo saturado, que se representa de la forma:
+$$  \log{\frac{P(Y \leq j | x)}{P(Y > j | x)}} = \alpha_j + \beta_{j1}\text{I}\lbrace \text{terapia = tratamiento} \rbrace $$ 
+Dice que el efecto de la covariable terapia sobre la chance si depende de las categorías de la variable respuesta.
+
+Se utiliza el paquete paquete \texttt{VGAM} y su función \texttt{vglm}, el cual entrega la siguiente salida para el ajuste del modelo saturado:
+```{r, warning=FALSE, message=FALSE}
+modelo_2_s <- vglm(escala_dolor ~ terapia, data = data_2, weights = conteo, 
+                   family = cumulative)
+modelo_2_s
+```
+La prueba de hipótesis es en este caso:
+
+\vspace{-0.4in}
+\begin{center}
+\begin{align*}
+&H_0\text{: } \text{M0 - Razón de Chance Proporcional}\\
+&H_1\text{: } \text{M1 - Razón de Chance no Proporcional}\\
+\end{align*}
+\end{center}
+\vspace{-0.35in}
+
+Luego se procede a construir el estadístico respectivo:
+```{r}
+trv <- deviance(modelo_2) - deviance(modelo_2_s)
+trv 
+```
+
+Y su valor-p asociado:
+```{r}
+pchisq(trv, df= df.residual(modelo_2)-df.residual(modelo_2_s), lower.tail = FALSE)
+```
+
+Por lo que al ser el valor-p menor a 0.05 (nivel de significancia estándar), existe evidencia suficiente para rechazar la hipótesis nula, por lo que las chances no son proporcionales y varían según la categoría de la variable respuesta.
+
+c) Estudie el efecto del tratamiento e interprete la razón de chances respectiva en términos del problema.
+
+\textbf{Resolución} 
+
+Como se analizó en el apartado anterior, si existe un efecto del tratamiento en las razones de chance, por lo que la siguiente interpretación de éstas se hará en función del modelo saturado, que considera razones de chances no proporcionales.
+
+La razones de chance de las personas que recibieron el tratamiento versus la de las personas que no recibieron tratamiento y solo consumieron el placebo; de tener 1 nivel de dolor versus dos o más niveles de dolor es:
+```{r}
+exp(cbind(OR = coef(modelo_2_s))[5])
+```
+Esto se interpreta como que una persona con el tratamiento tiene 1.14 menos probabilidad de sentir dolor que una persona que tomo el placebo.
+
+La razones de chance de las personas que recibieron el tratamiento versus la de las personas que no recibieron tratamiento y solo consumieron el placebo; de tener 1 o 2 niveles de dolor versus 3 o más niveles de dolor es:
+```{r}
+exp(cbind(OR = coef(modelo_2_s))[6])
+```
+Esto se interpreta como que una persona con el tratamiento tiene 3.6 menos probabilidad de sentir dolor que una persona que tomo el placebo.
+
+La razones de chance de las personas que recibieron el tratamiento versus la de las personas que no recibieron tratamiento y solo consumieron el placebo; de tener 1,2 o 3 niveles de dolor versus 4 o más niveles de dolor es:
+```{r}
+exp(cbind(OR = coef(modelo_2_s))[7])
+```
+Esto se interpreta como que una persona con el tratamiento tiene 4.3 menos probabilidad de sentir dolor que una persona que tomo el placebo.
+
+La razones de chance de las personas que recibieron el tratamiento versus la de las personas que no recibieron tratamiento y solo consumieron el placebo; de tener 1,2,3 o 4 niveles de dolor versus 5 nivel de dolor es:
+```{r}
+exp(cbind(OR = coef(modelo_2_s))[8])
+```
+Esto se interpreta como que una persona con el tratamiento tiene 2.1 menos probabilidad de sentir dolor que una persona que tomo el placebo.
+
+En todos los casos las razones de chance son mayores a 1, por lo que una persona que recibió el tratamiento es menos propensa a sentir dolor que una persona que solo consumió el placebo.
+
+# **Pregunta 3**
+
+Las siguientes preguntas tienen relación con la razón de chances (OR).
+
+a) Muestre que la razón de chances tiene una interpretación “dual”, es decir, muestre que:
+
+$$  \frac{P(Y =1|X =1)/P(Y =2|X =1)}{P(Y =1|X =2)/P(Y =2|X =2)} = \frac{P(X =1|Y =1)/P(X =2|Y =1)}{P(X =1|Y =2)/P(X =2|Y =2)}   $$
+\textbf{Resolución} 
+
+Considerando el teorema de probabilidad condicional, tal que:
+
+$$P(A|B) = \frac{P(B|A)P(A)}{P(B)}  $$
+Y dada la expresión:
+$$  \frac{P(Y =1|X =1)/P(Y =2|X =1)}{P(Y =1|X =2)/P(Y =2|X =2)}$$
+Se tiene que:
+$$ P(Y=1|X=1) = \frac{P(X=1|Y=1)P(Y=1)}{P(X=1)}  $$
+$$ P(Y=2|X=1) = \frac{P(X=1|Y=2)P(Y=2)}{P(X=1)}  $$
+$$ P(Y=1|X=2) = \frac{P(X=2|Y=1)P(Y=1)}{P(X=2)}  $$
+$$ P(Y=2|X=2) = \frac{P(X=2|Y=2)P(Y=2)}{P(X=2)}  $$
+El numerador se puede descomponer de la siguiente manera:
+$$\frac{P(X =1|Y =1)P(Y=1)/P(X =1)}{P(X =1|Y =2)P(Y=2)/P(X =1)} = \frac{P(X =1|Y =1)P(Y=1)}{P(X =1|Y =2)P(Y=2)}$$
+Y el denominador:
+$$\frac{P(X =2|Y =1)P(Y=1)/P(X =2)}{P(X =2|Y =2)P(Y=2)/P(X =2)} = \frac{P(X =2|Y =1)P(Y=1)}{P(X =2|Y =2)P(Y=2)}$$
+Uniéndo ambas expresiones se obtiene el cuociente:
+$$\frac{P(X =1|Y =1)P(Y=1)/P(X =1|Y =2)P(Y=2)}{P(X =2|Y =1)P(Y=1)/P(X =2|Y =2)P(Y=2)} $$
+Lo que eliminado términos semejantes y reescribiendo las expresiones queda como:
+$$ \frac{P(X =1|Y =1)/P(X =2|Y =1)}{P(X =1|Y =2)/P(X =2|Y =2)} $$
+Por lo que queda demostrado que la razón de chance tiene una interpretación dual.
+
+b) Encuentre la razón de chances para la enfermedad de un resultado positivo versus negativo de una prueba diagnóstica cuya especificidad es 0.98 y sensibilidad es 0.92.
+
+\textbf{Resolución} 
+
+Para este caso, la sensibilidad corresponde a la probabilidad de obtener un resultado positivo en la prueba estando enfermo, lo que se puede escribir como:
+$$ Sensibilidad = P(\hat{Y}=1|Y=1)$$
+Mientras que la especificidad, que corresponde a la probabilidad de obtener un resultado negativo en la prueba estando sano es:
+$$ Especificidad = P(\hat{Y}=0|Y=0)$$
+El complemento de la Sensibilidad, equivalente a la probabilidad de obtener un resultado negativo en la prueba estando enfermo equivale a:
+$$ 1- Sensibilidad = P(\hat{Y}=0|Y=1)$$
+Y el complemento de la Especificidad, que es la probabilidad de obtener un resultado positivo en la prueba estando sano:
+$$ 1 - Especificidad = P(\hat{Y}=1|Y=0)$$
+Con estas equivalencias se puede escribir la razón de chance, tal que:
+$$OR = \frac{ P(\hat{Y}=1|Y=1)/ P(\hat{Y}=0|Y=1)}{P(\hat{Y}=1|Y=0)/P(\hat{Y}=0|Y=0)} $$
+Congruente con la expresión:
+$$OR = \frac{Sensibilidad/1- Sensibilidad}{1-Especificidad/Especificidad} = \frac{0.92/0.08}{0.02/0.98} $$
+Se procede a calcular la expresión:
+```{r}
+sensibilidad = 0.98
+especificidad = 0.92
+
+odd_ratio <- ((sensibilidad/(1-sensibilidad))/((1-especificidad)/especificidad))
+odd_ratio
+```
+Por lo que la razón de chance es 563.5, lo que indica que una persona con resultado positivo tiene 563.5 veces más probabilidades de estar contagiada que una persona que dió negativo en el resultado del examen.
+
+# **Pregunta 4**
+
+En el archivo \text{varsovia.txt} (https://www.dropbox.com/s/o714znt7fiixw29/ varsovia.txt?dl=0) se presentan datos asociados a la edad de inicio de menstruación en 3918 mujeres de Varsovia. Para 25 edades medias se observa el número de mujeres que menstrúan (primera columna), el total de mujeres observadas (segunda columna) y la edad media de las jóvenes (tercera columna).
+
+```{r, echo=FALSE}
+data_3 <- read.delim("~/Downloads/varsovia.txt")
+head(data_3)
+```
+
+a) Usando un modelo de regresión binaria con enlace canónico, estime la edad media del inicio del período de menstruación para la cual el 50\% de las mujeres analizadas menstrúa. Comente sus resultados.
+
+\textbf{Resolución} 
+
+El modelo de regresión con enlace logit teórico queda de la forma:
+$$\log{(\frac{\pi}{1-\pi})} = \beta_0+ \beta_1\text{Edad Media}  $$
+Y su estimado:
+```{r, warning=FALSE, message=FALSE}
+modelo_3 <- glm(cbind(Exito,Total-Exito) ~ Edad_Media,
+                family=binomial(link="logit"),data=data_3)
+summary(modelo_3)
+```
+Con esta información y dado que se tiene que $\hat\pi = 0.5$ se obtiene la edad media del inicio del período de menstruación, despejando en el modelo estimado:
+$$  \text{Edad Media} = \frac{\log{(0.5/0.5)} - \hat{\beta}_0}{\hat{\beta}_1} = \frac{\log{(0.5/0.5)}+ 21.23}{1.63}$$
+Lo que se calcula a continuación:
+```{r}
+(log(0.5/0.5) - summary(modelo_3)$coefficients[1,1]) /summary(modelo_3)$coefficients[2,1]
+```
+
+Por lo que el 50\% de las mujeres en el estudio inicia su período de menstruación a los 13 años.
+
+b) Realice el mismo análisis anterior pero considerando un enlace cloglog. Comente sus resultados. Compárelos con los anteriormente obtenidos.
+
+\textbf{Resolución} 
+
+El modelo de regresión con enlace logit teórico queda de la forma:
+$$\log{(-\log{(1-\pi)})} = \beta_0+ \beta_1\text{Edad Media}  $$
+Y su estimado:
+```{r, warning=FALSE, message=FALSE}
+modelo_4 <- glm(cbind(Exito,Total-Exito) ~ Edad_Media,
+                family=binomial(link="cloglog"),data=data_3)
+summary(modelo_4)
+```
+
+Con esta información y dado que se tiene que $\hat\pi = 0.5$ se obtiene la edad media del inicio del período de menstruación, despejando en el modelo estimado:
+$$ \text{Edad Media} = \frac{\log{(-\log{(1-0.5)})} - \hat{\beta}_0}{\hat{\beta}_1} = \frac{\log{(-\log({0.5}))}+ 12.98}{0.95}$$
+Lo que se calcula a continuación:
+```{r}
+(log(-log(1-0.5)) - summary(modelo_4)$coefficients[1,1])/summary(modelo_4)$coefficients[2,1]
+```
+
+Por lo que el 50\% de las mujeres en el estudio inicia su período de menstruación aproximadamente a los 13 años y 3 meses.
+
+Respecto al resultado anterior, y analizando los indicadores de cada modelo; el AIC del modelo con el enlace canónico es menor al del modelo con el enlace cloglog; por lo que esta estimación se encuentra más sesgada que la anterior; agregando tres meses a la estimación de la edad media; por lo que se debe considerar la estimación del primer modelo y considerar que el 50\% de las mujeres en el estudio inicia su período de menstruación aproximadamente a los 13 años.
